@@ -2,6 +2,17 @@
 # This is just a snapshot of buildpack-deps:buster that was last updated on 2019-12-28.
 FROM judge0/buildpack-deps:buster-2019-12-28
 
+# Debian Buster reached end-of-life (2024-06) and was moved to archive.debian.org.
+# Redirect apt to the archive and disable Valid-Until checks so apt-get update keeps working.
+RUN set -xe && \
+    printf '%s\n' \
+      'deb http://archive.debian.org/debian buster main' \
+      'deb http://archive.debian.org/debian-security buster/updates main' \
+      > /etc/apt/sources.list && \
+    rm -f /etc/apt/sources.list.d/*.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until && \
+    apt-get update
+
 # Check for latest version here: https://gcc.gnu.org/releases.html, https://ftpmirror.gnu.org/gcc
 ENV GCC_VERSIONS \
       7.4.0 \
@@ -120,7 +131,7 @@ ENV FPC_VERSIONS \
       3.0.4
 RUN set -xe && \
     for VERSION in $FPC_VERSIONS; do \
-      curl -fSsL "ftp://ftp.freepascal.org/fpc/dist/$VERSION/x86_64-linux/fpc-$VERSION.x86_64-linux.tar" -o /tmp/fpc-$VERSION.tar && \
+      curl -fSsL "https://downloads.freepascal.org/fpc/dist/$VERSION/x86_64-linux/fpc-$VERSION.x86_64-linux.tar" -o /tmp/fpc-$VERSION.tar && \
       mkdir /tmp/fpc-$VERSION && \
       tar -xf /tmp/fpc-$VERSION.tar -C /tmp/fpc-$VERSION --strip-components=1 && \
       rm /tmp/fpc-$VERSION.tar && \
@@ -144,7 +155,7 @@ RUN set -xe && \
       cd /tmp/ghc-$VERSION && \
       ./configure \
         --prefix=/usr/local/ghc-$VERSION && \
-      make -j$(nproc) install && \
+      make install && \
       rm -rf /tmp/*; \
     done
 
@@ -241,7 +252,7 @@ ENV GO_VERSIONS \
       1.13.5
 RUN set -xe && \
     for VERSION in $GO_VERSIONS; do \
-      curl -fSsL "https://storage.googleapis.com/golang/go$VERSION.linux-amd64.tar.gz" -o /tmp/go-$VERSION.tar.gz && \
+      curl -fSsL "https://go.dev/dl/go$VERSION.linux-amd64.tar.gz" -o /tmp/go-$VERSION.tar.gz && \
       mkdir /usr/local/go-$VERSION && \
       tar -xf /tmp/go-$VERSION.tar.gz -C /usr/local/go-$VERSION --strip-components=1 && \
       rm -rf /tmp/*; \
@@ -249,10 +260,10 @@ RUN set -xe && \
 
 # Check for latest version here: https://sourceforge.net/projects/fbc/files/Binaries%20-%20Linux
 ENV FBC_VERSIONS \
-      1.07.1
+      1.07.3
 RUN set -xe && \
     for VERSION in $FBC_VERSIONS; do \
-      curl -fSsL "https://downloads.sourceforge.net/project/fbc/Binaries%20-%20Linux/FreeBASIC-$VERSION-linux-x86_64.tar.gz" -o /tmp/fbc-$VERSION.tar.gz && \
+      curl -fSsL "https://downloads.sourceforge.net/project/fbc/FreeBASIC-$VERSION/Binaries-Linux/FreeBASIC-$VERSION-linux-x86_64.tar.gz" -o /tmp/fbc-$VERSION.tar.gz && \
       mkdir /usr/local/fbc-$VERSION && \
       tar -xf /tmp/fbc-$VERSION.tar.gz -C /usr/local/fbc-$VERSION --strip-components=1 && \
       rm -rf /tmp/*; \
@@ -325,10 +336,7 @@ RUN set -xe && \
 ENV TYPESCRIPT_VERSIONS \
       3.7.4
 RUN set -xe && \
-    curl -fSsL "https://deb.nodesource.com/setup_12.x" | bash - && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends nodejs && \
-    rm -rf /var/lib/apt/lists/* && \
+    export PATH="/usr/local/node-12.14.0/bin:$PATH" && \
     for VERSION in $TYPESCRIPT_VERSIONS; do \
       npm install -g typescript@$VERSION; \
     done
@@ -355,7 +363,7 @@ RUN set -xe && \
 
 # Check for latest version here: http://gprolog.org/#download
 ENV GPROLOG_VERSIONS \
-      1.4.5
+      1.5.0
 RUN set -xe && \
     for VERSION in $GPROLOG_VERSIONS; do \
       curl -fSsL "http://gprolog.org/gprolog-$VERSION.tar.gz" -o /tmp/gprolog-$VERSION.tar.gz && \
@@ -500,9 +508,13 @@ RUN set -xe && \
 
 # Check for latest version here: https://github.com/clojure/clojure/releases
 ENV CLOJURE_VERSION 1.10.1
+ENV MAVEN_VERSION 3.6.3
 RUN set -xe && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends maven && \
+    curl -fSsL "https://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz" -o /tmp/maven.tar.gz && \
+    mkdir /tmp/maven && \
+    tar -xf /tmp/maven.tar.gz -C /tmp/maven --strip-components=1 && \
+    export PATH="/tmp/maven/bin:/usr/local/openjdk13/bin:$PATH" && \
+    export JAVA_HOME="/usr/local/openjdk13" && \
     cd /tmp && \
     git clone https://github.com/clojure/clojure && \
     cd clojure && \
@@ -510,8 +522,7 @@ RUN set -xe && \
     mvn -Plocal -Dmaven.test.skip=true package && \
     mkdir /usr/local/clojure-$CLOJURE_VERSION && \
     cp clojure.jar /usr/local/clojure-$CLOJURE_VERSION && \
-    apt-get remove --purge -y maven && \
-    rm -rf /var/lib/apt/lists/* /tmp/*
+    rm -rf /tmp/*
 
 # Check for latest version here: https://github.com/dotnet/sdk/releases
 RUN set -xe && \
@@ -522,7 +533,7 @@ RUN set -xe && \
 
 # Check for latest version here: https://groovy.apache.org/download.html
 RUN set -xe && \
-    curl -fSsL "https://dl.bintray.com/groovy/maven/apache-groovy-binary-3.0.3.zip" -o /tmp/groovy.zip && \
+    curl -fSsL "https://archive.apache.org/dist/groovy/3.0.3/distribution/apache-groovy-binary-3.0.3.zip" -o /tmp/groovy.zip && \
     unzip /tmp/groovy.zip -d /usr/local && \
     rm -rf /tmp/*
 
