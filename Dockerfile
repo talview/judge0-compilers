@@ -115,12 +115,15 @@ RUN set -xe && \
     done
 
 # ─────────────────────────────────────────────
-# OpenJDK 21 (LTS)
-# https://jdk.java.net/21
+# OpenJDK 21 (Eclipse Temurin LTS)
+# https://adoptium.net/temurin/releases/?version=21
+# Use Temurin tarballs — the upstream `download.java.net/java/GA/...` URLs
+# carry per-release build IDs that get rotated/removed; Temurin GitHub
+# release assets are stable and signed.
 # ─────────────────────────────────────────────
-ENV JDK_VERSION="21.0.5"
+ENV JDK_VERSION="21.0.5+11"
 RUN set -xe && \
-    curl -fSsL "https://download.java.net/java/GA/jdk21.0.5/9d56b1ef72184d09a4ee46a02e2c8d51/11/GPL/openjdk-21.0.5_linux-x64_bin.tar.gz" -o /tmp/openjdk21.tar.gz && \
+    curl -fSsLo /tmp/openjdk21.tar.gz "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_x64_linux_hotspot_21.0.5_11.tar.gz" && \
     mkdir /usr/local/openjdk21 && \
     tar -xf /tmp/openjdk21.tar.gz -C /usr/local/openjdk21 --strip-components=1 && \
     rm /tmp/openjdk21.tar.gz && \
@@ -164,12 +167,14 @@ RUN set -xe && \
     done
 
 # ─────────────────────────────────────────────
-# GHC (Haskell) 9.6.6
+# GHC (Haskell) 9.10.1
 # https://www.haskell.org/ghc/download.html
 # Drop `-j` from `make install` — parallel install fails to create
 # bin/haddock symlink on some hosts.
+# Note: GHC 9.6.x does not publish a deb12 build; 9.10.1 is the first
+# release with native bookworm binaries.
 # ─────────────────────────────────────────────
-ENV HASKELL_VERSIONS="9.6.6"
+ENV HASKELL_VERSIONS="9.10.1"
 RUN set -xe && \
     for VERSION in $HASKELL_VERSIONS; do \
       curl -fSsL "https://downloads.haskell.org/~ghc/$VERSION/ghc-$VERSION-x86_64-deb12-linux.tar.xz" -o /tmp/ghc-$VERSION.tar.xz && \
@@ -544,12 +549,13 @@ RUN set -xe && \
 
 # ─────────────────────────────────────────────
 # .NET SDK 8.0 (LTS)
-# https://github.com/dotnet/sdk/releases
-# Used for modern C# / F# / VB submissions (preferred over Mono).
+# https://dotnet.microsoft.com/download/dotnet/8.0
+# Use the channel-versioned `builds.dotnet.microsoft.com` URL — stable per
+# release, no rotating CDN GUIDs.
 # ─────────────────────────────────────────────
 ENV DOTNET_VERSION="8.0.404"
 RUN set -xe && \
-    curl -fSsL "https://download.visualstudio.microsoft.com/download/pr/1c0e1f0b-f4f3-4f78-b6f4-2a3bb6f3ae5f/01b3c1d5b5b8aa31a8de76e676db5a2c/dotnet-sdk-$DOTNET_VERSION-linux-x64.tar.gz" -o /tmp/dotnet.tar.gz && \
+    curl -fSsLo /tmp/dotnet.tar.gz "https://builds.dotnet.microsoft.com/dotnet/Sdk/$DOTNET_VERSION/dotnet-sdk-$DOTNET_VERSION-linux-x64.tar.gz" && \
     mkdir /usr/local/dotnet-sdk && \
     tar -xf /tmp/dotnet.tar.gz -C /usr/local/dotnet-sdk && \
     rm -rf /tmp/*
