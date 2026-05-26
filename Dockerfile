@@ -56,9 +56,6 @@ RUN set -xe && \
 # ─────────────────────────────────────────────
 # Ruby 3.3.7
 # https://www.ruby-lang.org/en/downloads
-# (Ruby 2.7.8 — legacy — is installed in a separate step at the end of
-#  this Dockerfile, after isolate. Keeping it out of the main RUBY_VERSIONS
-#  list preserves BuildKit cache when 2.7.8 is added.)
 # ─────────────────────────────────────────────
 ENV RUBY_VERSIONS="3.3.7"
 RUN set -xe && \
@@ -593,27 +590,6 @@ RUN set -xe && \
     make -j$(nproc) install && \
     rm -rf /tmp/*
 ENV BOX_ROOT=/var/local/lib/isolate
-
-# ─────────────────────────────────────────────
-# Ruby 2.7.8 — legacy, kept for the Judge0 Rails app itself (Rails 5)
-# Installed at the end of the file so it doesn't invalidate BuildKit cache
-# for the 30+ language steps above when this layer changes.
-# Remove once Judge0's Gemfile is upgraded off Rails 5 to a Ruby-3-compat
-# version.
-# ─────────────────────────────────────────────
-ENV LEGACY_RUBY_VERSION="2.7.8"
-RUN set -xe && \
-    curl -fSsL "https://cache.ruby-lang.org/pub/ruby/2.7/ruby-$LEGACY_RUBY_VERSION.tar.gz" -o /tmp/ruby-$LEGACY_RUBY_VERSION.tar.gz && \
-    mkdir /tmp/ruby-$LEGACY_RUBY_VERSION && \
-    tar -xf /tmp/ruby-$LEGACY_RUBY_VERSION.tar.gz -C /tmp/ruby-$LEGACY_RUBY_VERSION --strip-components=1 && \
-    rm /tmp/ruby-$LEGACY_RUBY_VERSION.tar.gz && \
-    cd /tmp/ruby-$LEGACY_RUBY_VERSION && \
-    ./configure \
-      --disable-install-doc \
-      --prefix=/usr/local/ruby-$LEGACY_RUBY_VERSION && \
-    make -j$(nproc) && \
-    make -j$(nproc) install && \
-    rm -rf /tmp/*
 
 LABEL maintainer="Talview SRE <sre@talview.com>"
 LABEL version="2.0.0"
