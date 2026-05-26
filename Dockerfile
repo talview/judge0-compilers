@@ -162,7 +162,7 @@ RUN set -xe && \
       tar -xf /tmp/fpc-$VERSION.tar -C /tmp/fpc-$VERSION --strip-components=1 && \
       rm /tmp/fpc-$VERSION.tar && \
       cd /tmp/fpc-$VERSION && \
-      echo "/usr/local/fpc-$VERSION" | sh install.sh && \
+      echo "/usr/local/fpc-$VERSION" | bash install.sh && \
       rm -rf /tmp/*; \
     done
 
@@ -428,7 +428,7 @@ RUN set -xe && \
       mkdir /tmp/sbcl-$VERSION && \
       tar -xf /tmp/sbcl-$VERSION.tar.bz2 -C /tmp/sbcl-$VERSION --strip-components=1 && \
       cd /tmp/sbcl-$VERSION && \
-      INSTALL_ROOT=/usr/local/sbcl-$VERSION sh install.sh && \
+      INSTALL_ROOT=/usr/local/sbcl-$VERSION bash install.sh && \
       rm -rf /tmp/*; \
     done
 
