@@ -23,6 +23,13 @@ RUN set -xe && \
         liblapack-dev \
         gfortran \
         libcap-dev \
+        libseccomp-dev \
+        libsystemd-dev \
+        asciidoc \
+        docbook-xml \
+        docbook-xsl \
+        xsltproc \
+        pkg-config \
         locales \
         ca-certificates \
         sqlite3 && \
@@ -575,17 +582,44 @@ ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
 
 # ─────────────────────────────────────────────
 # isolate — sandbox used by judge0 to run submissions
-# Pin to the same commit that upstream judge0/compilers:1.4.0 used.
+#
+# Upstream ioi/isolate v2.6 (2026-05-25). v2.0+ is cgroupv2-only — required to
+# run on standard AKS nodepools (Ubuntu 22.04, cgroupv2). The previous pin to
+# judge0/isolate@ad39cc4 was a 2021-era fork that supports cgroupv1 only.
+#
+# Manpage targets need network DTD lookups (a2x/xmllint), so build the
+# binaries explicitly and install them by hand to keep the layer self-contained.
+# SRE-3142.
 # ─────────────────────────────────────────────
 RUN set -xe && \
-    git clone https://github.com/judge0/isolate.git /tmp/isolate && \
+    git clone https://github.com/ioi/isolate.git /tmp/isolate && \
     cd /tmp/isolate && \
-    git checkout ad39cc4d0fbb577fb545910095c9da5ef8fc9a1a && \
-    make -j$(nproc) install && \
+    git checkout v2.6 && \
+    make -j$(nproc) isolate isolate-cg-keeper isolate-check-environment && \
+    install -m 4755 isolate /usr/local/bin/isolate && \
+    install -m 0755 isolate-cg-keeper /usr/local/bin/isolate-cg-keeper && \
+    install -m 0755 isolate-check-environment /usr/local/bin/isolate-check-environment && \
     rm -rf /tmp/*
+
+# isolate v2 config — manual cgroup delegation (no systemd in container).
+# cg_root is the subtree the entrypoint delegates to isolate at runtime.
+# syscall_flags=0 disables the v2.4+ seccomp filter; needed because the default
+# filter blocks fcntl(F_OFD_SETLK) which Go's build cache trim relies on.
+# Re-evaluate once Go drops the lock or isolate exposes a finer-grained flag.
+RUN mkdir -p /var/local/lib/isolate /run/isolate/locks && \
+    printf '%s\n' \
+        'box_root = /var/local/lib/isolate' \
+        'lock_root = /run/isolate/locks' \
+        'cg_root = /sys/fs/cgroup/isolate' \
+        'first_uid = 60000' \
+        'first_gid = 60000' \
+        'num_boxes = 100' \
+        'syscall_flags = 0' \
+        > /usr/local/etc/isolate
+
 ENV BOX_ROOT=/var/local/lib/isolate
 
 LABEL maintainer="Talview SRE <sre@talview.com>"
-LABEL version="2.0.0"
+LABEL version="2.1.0"
 LABEL org.opencontainers.image.source="https://github.com/talview/judge0-compilers"
 LABEL org.opencontainers.image.description="Talview-maintained Judge0 compilers image (Bookworm base, modern compilers)"
